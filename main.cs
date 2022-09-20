@@ -20,6 +20,11 @@ namespace DatabaseView {
         public void connect(string login, string password) {
             string connection_string = $"Server=localhost;Port=5432;User ID={login};Database=land_db;Password={password};";
             con = new NpgsqlConnection(string.Format(connection_string, login, password));
+            if(login.ToLower() == "sania")
+                {
+                MessageBox.Show("Этот пользователь имеет только право на чтение", "Ок", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                editingRights = false;
+                }
             con.Open();
         }
         public string capitalize(string str) {
