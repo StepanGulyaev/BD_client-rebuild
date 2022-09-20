@@ -18,8 +18,8 @@ namespace DatabaseView {
         private static Dictionary<string, string> requests = new Dictionary<string, string>();
         private static List<string> all_keys = new List<string> { };
         public void connect(string login, string password) {
-            string creds = $"Host=localhost;Username={login};Password={password};Database=coursework4";
-            con = new NpgsqlConnection(creds);
+            string connection_string = $"Server=localhost;Port=5432;User ID={login};Database=land_db;Password={password};";
+            con = new NpgsqlConnection(string.Format(connection_string, login, password));
             con.Open();
         }
         public string capitalize(string str) {

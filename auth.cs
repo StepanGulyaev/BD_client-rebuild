@@ -16,8 +16,8 @@ namespace DatabaseView {
         }
 
         private void button1_Click(object sender, EventArgs e) {
-            string creds = $"Host=localhost;Username={login.Text};Password={password.Text};Database=coursework4";
-            NpgsqlConnection con = new NpgsqlConnection(creds);
+            string connection_string = $"Server=localhost;Port=5432;User ID={login.Text};Database=land_db;Password={password.Text};";
+            NpgsqlConnection con = new NpgsqlConnection(string.Format(connection_string, login, password));
             bool valid = false;
             try {
                 con.Open();
