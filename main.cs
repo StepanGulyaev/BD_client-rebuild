@@ -22,7 +22,7 @@ namespace DatabaseView {
             con = new NpgsqlConnection(string.Format(connection_string, login, password));
             if(login.ToLower() == "sania")
                 {
-                MessageBox.Show("Этот пользователь имеет только право на чтение", "Ок", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show("Этот пользователь имеет право только на чтение", "Предупреждение", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 editingRights = false;
                 }
             con.Open();
@@ -56,36 +56,35 @@ namespace DatabaseView {
         public main(string login, string password) {
             InitializeComponent();
             connect(login, password);
-            requests.Add("ФИО + ЗП", "SELECT " +
-                              "stud_fio AS people_fio, CASE " +
-                              "WHEN payment_kty=1 THEN 5000 " +
-                              "WHEN payment_kty=2 THEN 7000 " +
-                              "WHEN payment_kty=3 THEN 10000 " +
-                              "WHEN payment_kty=4 THEN 12000 " +
-                              "WHEN payment_kty=5 THEN 15000 " +
-                              "ELSE 0 END AS stud_polezen " +
-                              "FROM Student AS St " +
-                              "INNER JOIN Payment AS Pay ON Pay.payment_stud = st.stud_id " +
-                              "ORDER BY payment_kty DESC;");
-            requests.Add("Count", "SELECT * FROM stud_spec_quant ORDER BY quantity;");
-            requests.Add("Without Mosco", "SELECT brig_id, brig_object, " +
-                              "(SELECT stud_id FROM Student " +
-                              "WHERE stud_id = brig_stud), " +
-                              "(SELECT spec_sprav_id FROM Speciality " +
-                              "WHERE spec_id = brig_spec) " +
-                              "FROM (SELECT *FROM Brigade " +
-                              "WHERE brig_spec != 0) AS stud_special " +
-                              "WHERE brig_object != 'Москва'; ");
-            requests.Add("Count > 1", "SELECT stud_fio, count(spec_sprav_id) AS quantity " +
-                              "FROM Student, Speciality " +
-                              "WHERE stud_id = spec_stud " +
-                              "GROUP BY stud_fio " +
-                              "HAVING count(spec_sprav_id)>1;");
-            requests.Add("City + plot", "SELECT " +
-                              "brig_object, brig_plot " +
-                              "FROM Brigade " +
-                              "WHERE brig_stud = ANY " +
-                              "(SELECT stud_id FROM Student WHERE stud_university = 'MIREA');");
+            requests.Add("Налог на участок","SELECT " +
+                              "obj_name AS region, CASE " +
+                              "WHEN reg_tax = 'да' THEN 5000 " +
+                              "WHEN reg_tax = 'нет' THEN 0000 " +
+                              "ELSE 0 END AS tax " +
+                              "FROM Object " +
+                              "INNER JOIN Region on Region.reg_id = Object.obj_reg;");
+            requests.Add("Цена свободных участков", "SELECT * FROM reg_svobodno;");
+            requests.Add("Размер дорогих участков на КК", "SELECT reg_id, " +
+                              "(SELECT obj_square " +
+                              "FROM Object " +
+                              "WHERE obj_name LIKE '%КК%'), " +
+                              "(SELECT sprav_amountofoccupiedland " +
+                              "FROM Spravochnik " +
+                              "WHERE sprav_name LIKE '%КК%') " +
+                              "FROM " +
+                              "(SELECT reg_address,reg_id FROM Region) AS Zemliy " +
+                              "WHERE " +
+                              "reg_address = ANY((SELECT reg_address FROM region WHERE reg_costmeter > 10000));");
+            requests.Add("Максимальная цена участка", "SELECT  max(reg_sum), reg_address " +
+                              "FROM Region " +
+                              "WHERE reg_costmeter >0 " +
+                              "GROUP BY reg_id " +
+                              "HAVING max(reg_sum)>1750000.00;");
+            requests.Add("Размер свободных участков", "SELECT " +
+                              "sprav_name, sprav_amountoffreeland " +
+                              "FROM Spravochnik " +
+                              "WHERE sprav_id  = ANY " +
+                              "(SELECT reg_sprav FROM Region WHERE reg_sum>1750000.00);");
         }
 
         private void main_Load(object sender, EventArgs e) {
@@ -253,6 +252,5 @@ namespace DatabaseView {
 
             }
         }
-
     }
 }

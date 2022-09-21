@@ -199,32 +199,17 @@ SELECT *FROM reg_svobodno;
 
 
 --c. Запрос, содержащий коррелированные и некоррелированные подзапросы в разделах SELECT, FROM и WHERE (в каждом хотя бы по одному);
---вывод id участка, его наименование, фио владельца и кол-во занятой земли
-SELECT reg_id, reg_name,
-	(SELECT own_fio 
-	 FROM Owners
-	 WHERE own_id = reg_own),
-	 
-	(SELECT sprav_amountofoccupiedland 
-	 FROM Spravochnik
-	 WHERE reg_sprav = reg_id)
-FROM 
-	(SELECT *FROM Region
-		 WHERE reg_id != 0) AS Zemliy
-	WHERE reg_address = 'Москва';
-------
 SELECT reg_id,
-	(SELECT obj_square  
-	 FROM Object
-	 WHERE obj_id = obj_reg),
-	 
-	(SELECT sprav_amountofoccupiedland 
+	(SELECT obj_square
+	FROM Object
+	 WHERE obj_name LIKE '%КК%'),
+	(SELECT sprav_amountofoccupiedland
 	 FROM Spravochnik
-	 WHERE reg_sprav = reg_id)
-FROM 
-	(SELECT reg_id FROM Region
-	 WHERE reg_id != 0) AS Zemliy
-WHERE reg_address = 'Москва';
+	 WHERE sprav_name LIKE '%КК%')
+FROM
+	(SELECT reg_address,reg_id FROM Region) AS Zemliy
+WHERE
+	reg_address = ANY((SELECT reg_address FROM region WHERE reg_costmeter > 10000));
 
 --d. Многотабличный запрос, содержащий группировку записей, агрегативные функции и параметр, используемый в разделе HAVING;
 -- вывод ценник за землю и город, дороже 1750000.00
