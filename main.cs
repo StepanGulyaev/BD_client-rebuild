@@ -166,7 +166,7 @@ namespace DatabaseView {
             foreach (var item in dataSet.Tables[0].Rows[0].ItemArray) {
                 d.Add(dataSet.Tables[0].Columns[i++].ColumnName, "");
             }
-            editAddPopup popup = new editAddPopup("Add", d);
+            editAddPopup popup = new editAddPopup("Add", d,current_table,con);
             popup.ShowDialog();
             if (popup.result) {
                 int paramCount = popup.newValues.Keys.Count;
@@ -205,7 +205,7 @@ namespace DatabaseView {
                 foreach (var item in dataSet.Tables[0].Rows[selectedKey.SelectedIndex].ItemArray) {
                     d.Add(dataSet.Tables[0].Columns[i++].ColumnName, item.ToString());
                 }
-                editAddPopup popup = new editAddPopup("Edit", d);
+                editAddPopup popup = new editAddPopup("Edit", d, current_table, con);
                 popup.ShowDialog();
                 if (popup.result) {
                     int paramCount = popup.newValues.Keys.Count;

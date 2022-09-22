@@ -7,15 +7,17 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using Npgsql;
 
 namespace DatabaseView {
     public partial class editAddPopup : Form {
+        private static NpgsqlConnection con;
         private int maxWidth = 12 + 12 + 45 + 12;
         private int maxHeight = 40;
         public bool result { get; set; }
         public Dictionary<string, string> newValues { get; set; } =  new Dictionary<string, string>();
 
-        private void createControls(string labelText, string inputText, Point llocation) {
+        private void createControls(string labelText, string inputText, Point llocation, bool en) {
             Label l = new Label();
             TextBox t = new TextBox();
 
@@ -33,13 +35,45 @@ namespace DatabaseView {
 
             this.Controls.Add(l);
             this.Controls.Add(t);
+
+            if (!en)
+                { 
+                t.Enabled = false;
+                } 
         }
-        public editAddPopup(string name, Dictionary<string, string> inputs) {
+
+        public editAddPopup(string name, Dictionary<string, string> inputs, string current_table, NpgsqlConnection con) {
             InitializeComponent();
             this.Text = name;
             int mult = 0;
+            NpgsqlCommand pk_cmd = new NpgsqlCommand("select kcu.column_name as key_column " +
+            " from information_schema.table_constraints tco" +
+            " join information_schema.key_column_usage kcu " +
+            "      on kcu.constraint_name = tco.constraint_name" +
+            "      and kcu.constraint_schema = tco.constraint_schema" +
+            "      and kcu.constraint_name = tco.constraint_name" +
+            $" where tco.constraint_type = 'PRIMARY KEY' and kcu.table_name='{current_table}'", con);
+            string primary_key = pk_cmd.ExecuteScalar().ToString();
+
             foreach (string key in inputs.Keys) {
-                createControls(key, inputs[key], new Point(12, 18 + 30 * mult));
+                if (key == primary_key)
+                    {
+                    NpgsqlCommand new_id_command = null;
+                    if (name == "Add")
+                        {
+                        new_id_command = new NpgsqlCommand($"SELECT MAX({primary_key})+1 FROM {current_table};", con);
+                        string new_id = new_id_command.ExecuteScalar().ToString();
+                        createControls(key, new_id, new Point(12, 18 + 30 * mult), false);
+                        }
+                    else if (name == "Edit")
+                        {
+                        createControls(key, inputs[key], new Point(12, 18 + 30 * mult),false);
+                        }
+                    }
+                else
+                    {
+                    createControls(key, inputs[key], new Point(12, 18 + 30 * mult), true);
+                    }
                 mult++;
             }
             applyBtn.Location = new Point(12, maxHeight - 30);

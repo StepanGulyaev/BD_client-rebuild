@@ -36,7 +36,6 @@
             this.login.Name = "login";
             this.login.Size = new System.Drawing.Size(100, 20);
             this.login.TabIndex = 0;
-            this.login.Text = "postgres";
             // 
             // password
             // 
@@ -45,7 +44,6 @@
             this.password.PasswordChar = '*';
             this.password.Size = new System.Drawing.Size(100, 20);
             this.password.TabIndex = 1;
-            this.password.Text = "root";
             // 
             // button1
             // 
