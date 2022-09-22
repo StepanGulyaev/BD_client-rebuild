@@ -36,10 +36,9 @@ namespace DatabaseView {
             this.Controls.Add(l);
             this.Controls.Add(t);
 
-            if (!en)
-                { 
+            if (!en){ 
                 t.Enabled = false;
-                } 
+            } 
         }
 
         public editAddPopup(string name, Dictionary<string, string> inputs, string current_table, NpgsqlConnection con) {
@@ -55,25 +54,23 @@ namespace DatabaseView {
             $" where tco.constraint_type = 'PRIMARY KEY' and kcu.table_name='{current_table}'", con);
             string primary_key = pk_cmd.ExecuteScalar().ToString();
 
+
+
             foreach (string key in inputs.Keys) {
-                if (key == primary_key)
-                    {
+                if (key == primary_key) {
                     NpgsqlCommand new_id_command = null;
-                    if (name == "Add")
-                        {
+                    if (name == "Add") {
                         new_id_command = new NpgsqlCommand($"SELECT MAX({primary_key})+1 FROM {current_table};", con);
                         string new_id = new_id_command.ExecuteScalar().ToString();
                         createControls(key, new_id, new Point(12, 18 + 30 * mult), false);
-                        }
-                    else if (name == "Edit")
-                        {
+                    }
+                    else if (name == "Edit") {
                         createControls(key, inputs[key], new Point(12, 18 + 30 * mult),false);
-                        }
                     }
-                else
-                    {
+                
+                } else {
                     createControls(key, inputs[key], new Point(12, 18 + 30 * mult), true);
-                    }
+                }
                 mult++;
             }
             applyBtn.Location = new Point(12, maxHeight - 30);
