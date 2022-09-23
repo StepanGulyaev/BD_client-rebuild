@@ -40,6 +40,67 @@ namespace DatabaseView {
             } 
         }
 
+        private void createForeignKeyComboBox(string labelText, string f_key, Point llocation, NpgsqlConnection con)
+            {
+            Label l = new Label();
+            ComboBox c = new ComboBox();
+
+            l.Text = labelText + ": ";
+            l.Tag = labelText;
+            l.Location = llocation;
+            SizeF size = l.CreateGraphics().MeasureString(l.Text, l.Font);
+            l.Size = new Size((int)size.Width, (int)size.Height);
+            c.Location = new Point(l.Location.X + (int)size.Width + 5, l.Location.Y - 3);
+            if (maxWidth < c.Location.X + 110)
+                {
+                maxWidth = c.Location.X + 110;
+                }
+            maxHeight += 30;
+
+            NpgsqlCommand get_ref_table_cmd = new NpgsqlCommand("WITH unnested_confkey AS ( " +
+                "SELECT oid, unnest(confkey) as confkey " +
+                "FROM pg_constraint), " +
+                "unnested_conkey AS( " +
+                "SELECT oid, unnest(conkey) as conkey " +
+                "FROM pg_constraint) " +
+                "select " +
+                "referenced_tbl.relname AS referenced_table " +
+                "FROM pg_constraint c " +
+                "LEFT JOIN unnested_conkey con ON c.oid = con.oid " +
+                "LEFT JOIN pg_class tbl ON tbl.oid = c.conrelid " +
+                "LEFT JOIN pg_attribute col ON(col.attrelid = tbl.oid AND col.attnum = con.conkey) " +
+                "LEFT JOIN pg_class referenced_tbl ON c.confrelid = referenced_tbl.oid " +
+                "LEFT JOIN unnested_confkey conf ON c.oid = conf.oid " +
+                "LEFT JOIN pg_attribute referenced_field ON(referenced_field.attrelid = c.confrelid AND referenced_field.attnum = conf.confkey) " +
+                $"WHERE c.contype = 'f' AND col.attname = '{f_key}';", con);
+            string ref_table = get_ref_table_cmd.ExecuteScalar().ToString();
+
+            NpgsqlCommand pk_cmd = new NpgsqlCommand("select kcu.column_name as key_column " +
+            " from information_schema.table_constraints tco" +
+            " join information_schema.key_column_usage kcu " +
+            "      on kcu.constraint_name = tco.constraint_name" +
+            "      and kcu.constraint_schema = tco.constraint_schema" +
+            "      and kcu.constraint_name = tco.constraint_name" +
+            $" where tco.constraint_type = 'PRIMARY KEY' and kcu.table_name='{ref_table}'", con);
+            string primary_key_ref_table = pk_cmd.ExecuteScalar().ToString();
+
+            NpgsqlCommand get_all_pk_cmd = new NpgsqlCommand($"SELECT {primary_key_ref_table} FROM {ref_table};",con);
+            NpgsqlDataReader reader = get_all_pk_cmd.ExecuteReader();
+
+            if (reader.HasRows)
+                {
+                while (reader.Read())
+                    {
+                    //c.Items.Add(reader.GetString(0));
+                    }
+                }
+            reader.Close();
+
+
+            this.Controls.Add(l);
+            this.Controls.Add(c);
+            }
+
         public editAddPopup(string name, Dictionary<string, string> inputs, string current_table, NpgsqlConnection con) {
             InitializeComponent();
             this.Text = name;
@@ -84,7 +145,7 @@ namespace DatabaseView {
                 
                 } 
                 else if (foreign_keys.Contains(key)) {
-                    createControls(key, inputs[key], new Point(12, 18 + 30 * mult), false);
+                    createForeignKeyComboBox(key, key, new Point(12, 18 + 30 * mult),con);
                     } else {  
                     createControls(key, inputs[key], new Point(12, 18 + 30 * mult), true);
                 }
