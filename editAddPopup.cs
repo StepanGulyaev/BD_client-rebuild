@@ -81,17 +81,17 @@ namespace DatabaseView {
             "      on kcu.constraint_name = tco.constraint_name" +
             "      and kcu.constraint_schema = tco.constraint_schema" +
             "      and kcu.constraint_name = tco.constraint_name" +
-            $" where tco.constraint_type = 'PRIMARY KEY' and kcu.table_name='{ref_table}'", con);
+            $" where tco.constraint_type = 'PRIMARY KEY' and kcu.table_name='{ref_table}';", con);
             string primary_key_ref_table = pk_cmd.ExecuteScalar().ToString();
 
             NpgsqlCommand get_all_pk_cmd = new NpgsqlCommand($"SELECT {primary_key_ref_table} FROM {ref_table};",con);
             NpgsqlDataReader reader = get_all_pk_cmd.ExecuteReader();
-
+            c.Items.Clear();
             if (reader.HasRows)
                 {
                 while (reader.Read())
                     {
-                    //c.Items.Add(reader.GetString(0));
+                    c.Items.Add(reader.GetInt32(0));
                     }
                 }
             reader.Close();
@@ -111,7 +111,7 @@ namespace DatabaseView {
             "      on kcu.constraint_name = tco.constraint_name" +
             "      and kcu.constraint_schema = tco.constraint_schema" +
             "      and kcu.constraint_name = tco.constraint_name" +
-            $" where tco.constraint_type = 'PRIMARY KEY' and kcu.table_name='{current_table}'", con);
+            $" where tco.constraint_type = 'PRIMARY KEY' and kcu.table_name='{current_table}';", con);
             string primary_key = pk_cmd.ExecuteScalar().ToString();
 
             NpgsqlCommand fk_cmd = new NpgsqlCommand("select kcu.column_name as key_column " +
@@ -120,7 +120,7 @@ namespace DatabaseView {
            "      on kcu.constraint_name = tco.constraint_name" +
            "      and kcu.constraint_schema = tco.constraint_schema" +
            "      and kcu.constraint_name = tco.constraint_name" +
-           $" where tco.constraint_type = 'FOREIGN KEY' and kcu.table_name='{current_table}'", con);
+           $" where tco.constraint_type = 'FOREIGN KEY' and kcu.table_name='{current_table}';", con);
             NpgsqlDataReader reader = fk_cmd.ExecuteReader();
             List<string> foreign_keys = new List<string>();
 
