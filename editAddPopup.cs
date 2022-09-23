@@ -11,7 +11,6 @@ using Npgsql;
 
 namespace DatabaseView {
     public partial class editAddPopup : Form {
-        private static NpgsqlConnection con;
         private int maxWidth = 12 + 12 + 45 + 12;
         private int maxHeight = 40;
         public bool result { get; set; }
@@ -54,7 +53,22 @@ namespace DatabaseView {
             $" where tco.constraint_type = 'PRIMARY KEY' and kcu.table_name='{current_table}'", con);
             string primary_key = pk_cmd.ExecuteScalar().ToString();
 
+            NpgsqlCommand fk_cmd = new NpgsqlCommand("select kcu.column_name as key_column " +
+           " from information_schema.table_constraints tco" +
+           " join information_schema.key_column_usage kcu " +
+           "      on kcu.constraint_name = tco.constraint_name" +
+           "      and kcu.constraint_schema = tco.constraint_schema" +
+           "      and kcu.constraint_name = tco.constraint_name" +
+           $" where tco.constraint_type = 'FOREIGN KEY' and kcu.table_name='{current_table}'", con);
+            NpgsqlDataReader reader = fk_cmd.ExecuteReader();
+            List<string> foreign_keys = new List<string>();
 
+            if (reader.HasRows) {
+                while (reader.Read()) {
+                    foreign_keys.Add(reader.GetString(0)); 
+                }
+            }
+            reader.Close();
 
             foreach (string key in inputs.Keys) {
                 if (key == primary_key) {
@@ -68,9 +82,16 @@ namespace DatabaseView {
                         createControls(key, inputs[key], new Point(12, 18 + 30 * mult),false);
                     }
                 
-                } else {
+                } 
+                else if (foreign_keys.Contains(key)) {
+                    createControls(key, inputs[key], new Point(12, 18 + 30 * mult), false);
+                    } else {  
                     createControls(key, inputs[key], new Point(12, 18 + 30 * mult), true);
                 }
+
+
+
+
                 mult++;
             }
             applyBtn.Location = new Point(12, maxHeight - 30);
