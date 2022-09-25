@@ -209,13 +209,15 @@ namespace DatabaseView {
                 popup.ShowDialog();
                 if (popup.result) {
                     int paramCount = popup.newValues.Keys.Count;
-                    string update_query = $"UPDATE {current_table} SET ";
                     foreach (string key in popup.newValues.Keys) {
-                        update_query += $" {key} = '{popup.newValues[key]}',";
-                    }
-                    update_query = update_query.Remove(update_query.Length - 1);
+                        string update_query = $"CALL update_field('{current_table}','{key}',{selectedKey.SelectedItem},'{popup.newValues[key]}');";
+                        NpgsqlCommand upd = new NpgsqlCommand(update_query, con);
+                        upd.ExecuteNonQuery();
+                        }
+       
+                    /*update_query = update_query.Remove(update_query.Length - 1);
                     update_query += $" WHERE {keyLabel.Text.Remove(keyLabel.Text.Length - 1)}='{selectedKey.SelectedItem}'";
-                    NpgsqlCommand upd = new NpgsqlCommand(update_query, con);
+                    //NpgsqlCommand upd = new NpgsqlCommand(update_query, con);
                     int result = 0;
                     try {
                         result = upd.ExecuteNonQuery();
@@ -224,7 +226,7 @@ namespace DatabaseView {
                         MessageBox.Show("Значения были успешно изменены", "Успешно", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     } else {
                         MessageBox.Show("Произошла ошибка при попытке изменить значения", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    }
+                    }*/
                     showQuery($"SELECT * FROM {current_table}");
                     fillEditBox(current_table.ToLower());
                 }
@@ -235,21 +237,11 @@ namespace DatabaseView {
             if (selectedKey.SelectedIndex < 0) {
                 MessageBox.Show("Сначала выберите, какую запись хотите изменить", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
             } else {
-                string remove_query = $"DELETE FROM {current_table} ";
-                remove_query += $" WHERE {keyLabel.Text.Remove(keyLabel.Text.Length - 1)}='{selectedKey.SelectedItem}'";
+                string remove_query = $"CALL delete_record('{current_table}','{keyLabel.Text.Remove(keyLabel.Text.Length - 1)}',{selectedKey.SelectedItem});";
                 NpgsqlCommand rem = new NpgsqlCommand(remove_query, con);
-                int result = 0;
-                try {
-                    result = rem.ExecuteNonQuery();
-                } catch { }
-                if (result > 0) {
-                    MessageBox.Show("Запись была успешно удалена", "Успешно", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                } else {
-                    MessageBox.Show("Произошла ошибка при попытке удалить запись", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }
+                rem.ExecuteNonQuery();
                 showQuery($"SELECT * FROM {current_table}");
                 fillEditBox(current_table.ToLower());
-
             }
         }
     }

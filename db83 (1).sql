@@ -13,7 +13,7 @@ CREATE TABLE Owners (
 	own_facetype TEXT NOT NULL, --лицо
 	own_communicationmethod TEXT, --способ связи
 	CONSTRAINT  CHK_Own CHECK ( (own_facetype = 'физическое') or (own_facetype = 'юридическое') ),
-	own_own INT REFERENCES Owners (own_id)
+	own_own INT REFERENCES Owners (own_id) ON DELETE CASCADE
 );
 
 --3.таблица Участка
@@ -427,6 +427,8 @@ BEGIN
 return return_val;
 END;
 $$;
+
+
 
 --добавление участка
 create function add_reg(_name text, _square int, _address text, _amountregion int, _cadastralobject int, _sprav int, _tax text, _costmeter numeric)

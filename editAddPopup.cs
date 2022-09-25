@@ -44,6 +44,7 @@ namespace DatabaseView {
             {
             Label l = new Label();
             ComboBox c = new ComboBox();
+            c.DropDownStyle = ComboBoxStyle.DropDownList;
 
             l.Text = labelText + ": ";
             l.Tag = labelText;
@@ -87,15 +88,12 @@ namespace DatabaseView {
             NpgsqlCommand get_all_pk_cmd = new NpgsqlCommand($"SELECT {primary_key_ref_table} FROM {ref_table};",con);
             NpgsqlDataReader reader = get_all_pk_cmd.ExecuteReader();
             c.Items.Clear();
-            if (reader.HasRows)
-                {
-                while (reader.Read())
-                    {
+            if (reader.HasRows){
+                while (reader.Read()){
                     c.Items.Add(reader.GetInt32(0));
                     }
                 }
             reader.Close();
-
 
             this.Controls.Add(l);
             this.Controls.Add(c);
