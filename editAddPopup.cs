@@ -99,6 +99,33 @@ namespace DatabaseView {
             this.Controls.Add(c);
             }
 
+        private void createConstraintComboBox(string labelText, List<string> possible_values, Point llocation)
+            {
+            Label l = new Label();
+            ComboBox c = new ComboBox();
+            c.DropDownStyle = ComboBoxStyle.DropDownList;
+
+            l.Text = labelText + ": ";
+            l.Tag = labelText;
+            l.Location = llocation;
+            SizeF size = l.CreateGraphics().MeasureString(l.Text, l.Font);
+            l.Size = new Size((int)size.Width, (int)size.Height);
+            c.Location = new Point(l.Location.X + (int)size.Width + 5, l.Location.Y - 3);
+            if (maxWidth < c.Location.X + 110)
+                {
+                maxWidth = c.Location.X + 110;
+                }
+            maxHeight += 30;
+
+            foreach(string value in possible_values)
+                {
+                c.Items.Add(value);
+                }
+            
+            this.Controls.Add(l);
+            this.Controls.Add(c);
+            }
+
         public editAddPopup(string name, Dictionary<string, string> inputs, string current_table, NpgsqlConnection con) {
             InitializeComponent();
             this.Text = name;
@@ -136,21 +163,30 @@ namespace DatabaseView {
                         new_id_command = new NpgsqlCommand($"SELECT last_value+1 FROM {current_table}_{primary_key}_seq;", con);
                         string new_id = new_id_command.ExecuteScalar().ToString();
                         createControls(key, new_id, new Point(12, 18 + 30 * mult), false);
-                    }
+                        }
                     else if (name == "Edit") {
-                        createControls(key, inputs[key], new Point(12, 18 + 30 * mult),false);
+                        createControls(key, inputs[key], new Point(12, 18 + 30 * mult), false);
+                        }
+
                     }
-                
-                } 
                 else if (foreign_keys.Contains(key)) {
-                    createForeignKeyComboBox(key, key, new Point(12, 18 + 30 * mult),con);
-                    } else {  
+                    createForeignKeyComboBox(key, key, new Point(12, 18 + 30 * mult), con);
+                    }
+                else if (current_table == "owners" && key == "own_facetype") {
+                    List<string> possible_values= new List<string>();
+                    possible_values.Add("физическое");
+                    possible_values.Add("юридическое");
+                    createConstraintComboBox(key, possible_values, new Point(12, 18 + 30 * mult));
+                }
+                else if (current_table == "region" && key == "reg_tax"){
+                    List<string> possible_values = new List<string>();
+                    possible_values.Add("да");
+                    possible_values.Add("нет");
+                    createConstraintComboBox(key, possible_values, new Point(12, 18 + 30 * mult));
+                    }
+                else {  
                     createControls(key, inputs[key], new Point(12, 18 + 30 * mult), true);
                 }
-
-
-
-
                 mult++;
             }
             applyBtn.Location = new Point(12, maxHeight - 30);
