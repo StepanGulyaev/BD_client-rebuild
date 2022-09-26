@@ -133,7 +133,7 @@ namespace DatabaseView {
                 if (key == primary_key) {
                     NpgsqlCommand new_id_command = null;
                     if (name == "Add") {
-                        new_id_command = new NpgsqlCommand($"SELECT MAX({primary_key})+1 FROM {current_table};", con);
+                        new_id_command = new NpgsqlCommand($"SELECT last_value+1 FROM {current_table}_{primary_key}_seq;", con);
                         string new_id = new_id_command.ExecuteScalar().ToString();
                         createControls(key, new_id, new Point(12, 18 + 30 * mult), false);
                     }

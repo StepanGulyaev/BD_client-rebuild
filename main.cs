@@ -144,6 +144,9 @@ namespace DatabaseView {
                 editBox.Enabled = true;
             }
             string table = ((Button)sender).Tag.ToString();
+            if (table == "logs"){
+                editBox.Enabled = false;
+                }
             current_table = table;
             showQuery($"SELECT * FROM {table}");
             fillEditBox(table.ToLower());
@@ -171,39 +174,26 @@ namespace DatabaseView {
             if (popup.result) {
                 int paramCount = popup.newValues.Keys.Count;
                 string insert_query = "SELECT ";
-                if(current_table == "owners")
-                    {
+                if(current_table == "owners"){
                     insert_query += "add_owners(";
-                    }
-                else if(current_table == "region")
-                    {
+                }else if(current_table == "region"){
                     insert_query += "add_reg(";
-                    }
-                else if(current_table== "object")
-                    {
+                }else if(current_table== "object"){
                     insert_query += "add_obj(";
-                    }
-                else if (current_table == "object")
-                    {
-                    insert_query += "add_obj(";
-                    }
-                else if (current_table == "spravochnik")
-                    {
+                }else if (current_table == "spravochnik"){
                     insert_query += "add_sprav(";
-                    }
+                }
 
                 NpgsqlCommand get_table_datatypes = new NpgsqlCommand("SELECT column_name,data_type FROM " +
                     $"information_schema.columns WHERE table_name = '{current_table}' AND ordinal_position <> 1 ORDER BY ordinal_position;",con);
                 NpgsqlDataReader reader = get_table_datatypes.ExecuteReader();
                 Dictionary<string, string> t_data_types = new Dictionary<string, string>();
 
-                if (reader.HasRows)
-                    {
-                    while (reader.Read())
-                        {
+                if (reader.HasRows){
+                    while (reader.Read()){
                         t_data_types.Add(reader.GetString(0), reader.GetString(1));
-                        }
                     }
+                }
                 reader.Close();
 
                 NpgsqlCommand pk_cmd = new NpgsqlCommand("select kcu.column_name as key_column " +
@@ -218,29 +208,18 @@ namespace DatabaseView {
                 foreach (string column in t_data_types.Keys) {
                     if(t_data_types[column] != primary_key) {
                     string dt = t_data_types[column];
-                    if (dt == "text" || dt == "date" || dt == "bool" || dt == "timestamp")
-                        {
+                    if (dt == "text" || dt == "date" || dt == "bool" || dt == "timestamp"){
                         insert_query += $"'{popup.newValues[column]}',";
-                        }
-                    else
-                        {
+                    }else{
                         insert_query += $"{popup.newValues[column]},";
-                        }
                     }
                 }
-                insert_query = insert_query.Remove(insert_query.Length - 1) + ");";
-                NpgsqlCommand ins = new NpgsqlCommand(insert_query, con);
-                int result = 0;
-                try {
-                    result = ins.ExecuteNonQuery();
-                } catch { }
-                if (result > 0) {
-                    MessageBox.Show("Запись была успешно добавлена", "Успешно", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                } else {
-                    MessageBox.Show("Произошла ошибка при попытке добавить запись", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }
-                showQuery($"SELECT * FROM {current_table}");
-                fillEditBox(current_table.ToLower());
+            }
+            insert_query = insert_query.Remove(insert_query.Length - 1) + ");";
+            NpgsqlCommand ins = new NpgsqlCommand(insert_query, con);
+            ins.ExecuteNonQuery();
+            showQuery($"SELECT * FROM {current_table}");
+            fillEditBox(current_table.ToLower());
             }
         }
 

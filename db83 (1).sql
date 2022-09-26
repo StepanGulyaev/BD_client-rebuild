@@ -143,6 +143,8 @@ INSERT INTO Spravochnik VALUES
 
 SELECT *FROM Spravochnik;
 
+SELECT SETVAL('spravochnik_sprav_id_seq',(SELECT MAX(sprav_id) FROM spravochnik)::bigint,true);
+
 --заполнение тестовыми данными табл 2
 INSERT INTO Owners VALUES
 (1,'Максимов Е.Р.','физическое','почта',1),
@@ -150,6 +152,8 @@ INSERT INTO Owners VALUES
 (3,'Мурлыкзабеткович Р.Н.','физическое','телефон',3);
 
 SELECT *FROM Owners;
+
+SELECT SETVAL('owners_own_id_seq',(SELECT MAX(own_id) FROM owners)::bigint,true);
 --заполнение тестовыми данными табл 3
 INSERT INTO Region VALUES
 (1,'КК-01',400,'Москва',5,888677,1,'да',12000),
@@ -158,6 +162,8 @@ INSERT INTO Region VALUES
 
 SELECT *FROM Region;
 
+SELECT SETVAL('region_reg_id_seq',(SELECT MAX(reg_id) FROM region)::bigint,true);
+
 --заполнение тестовыми данными табл 4
 INSERT INTO Object VALUES
 (1,'КК-01',12000,400,'2015-07-23',1,1),
@@ -165,6 +171,8 @@ INSERT INTO Object VALUES
 (3,'НГ-22',80000,700,'2019-08-17',3,3);
 
 SELECT *FROM Object;
+
+SELECT SETVAL('object_obj_id_seq',(SELECT MAX(obj_id) FROM object)::bigint,true);
 
 --Создать индексы для увеличения скорости выполнения запросов
 CREATE INDEX idx_reg ON Region USING hash (reg_sum)  ;
@@ -286,6 +294,7 @@ CREATE ROLE Direction_admim;
 CREATE ROLE Prodavec;
 GRANT SELECT, UPDATE, INSERT, DELETE ON logs, Owners, Object, Region, Spravochnik TO Direction_admim;
 GRANT USAGE ON SEQUENCE logs_log_id_seq,object_obj_id_seq,owners_own_id_seq,region_reg_id_seq,spravochnik_sprav_id_seq TO Direction_admim;
+GRANT SELECT ON SEQUENCE logs_log_id_seq,object_obj_id_seq,owners_own_id_seq,region_reg_id_seq,spravochnik_sprav_id_seq TO Direction_admim;
 GRANT SELECT ON reg_svobodno to Direction_admim;
 GRANT SELECT ON logs, Owners, Object, Region, Spravochnik, reg_svobodno TO Prodavec;
 CREATE USER Andrey with password 'postgres';
