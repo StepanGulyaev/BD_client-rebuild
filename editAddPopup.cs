@@ -40,7 +40,7 @@ namespace DatabaseView {
             } 
         }
 
-        private void createForeignKeyComboBox(string labelText, string f_key, Point llocation, NpgsqlConnection con)
+        private void createForeignKeyComboBox(string labelText, string f_key, Point llocation,NpgsqlConnection con)
             {
             Label l = new Label();
             ComboBox c = new ComboBox();
@@ -171,7 +171,10 @@ namespace DatabaseView {
                     lv = c.Tag.ToString() ;
                 } else if (c is TextBox) {
                     tv = c.Text;
+                } else if (c is ComboBox) {
+                    tv = c.Text;
                 }
+                
                 if (tv != "" && lv != "") {
                     newValues.Add(lv, tv);
                     lv = ""; tv = "";

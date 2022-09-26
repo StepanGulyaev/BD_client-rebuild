@@ -285,7 +285,7 @@ END; $function$;
 CREATE ROLE Direction_admim;
 CREATE ROLE Prodavec;
 GRANT SELECT, UPDATE, INSERT, DELETE ON logs, Owners, Object, Region, Spravochnik TO Direction_admim;
-GRANT USAGE ON SEQUENCE logs_log_id_seq TO Direction_admim;
+GRANT USAGE ON SEQUENCE logs_log_id_seq,object_obj_id_seq,owners_own_id_seq,region_reg_id_seq,spravochnik_sprav_id_seq TO Direction_admim;
 GRANT SELECT ON reg_svobodno to Direction_admim;
 GRANT SELECT ON logs, Owners, Object, Region, Spravochnik, reg_svobodno TO Prodavec;
 CREATE USER Andrey with password 'postgres';
@@ -298,6 +298,101 @@ GRANT Prodavec TO Sania;
 для остальных допустимо использовать возможности связывания
 полей ввода в приложении с полями БД.**/
 --добавление владельца
+
+CREATE OR REPLACE FUNCTION empty_null_check(in text) RETURNS void as $$
+BEGIN
+IF $1 IS NULL THEN
+        RAISE EXCEPTION 'Аргумент процедуры не может быть равен NULL!';
+ELSIF $1 = '' THEN
+	RAISE EXCEPTION 'Аргумент процедуры не может быть пуст!';
+END IF;
+END;
+$$ LANGUAGE plpgsql
+LEAKPROOF
+CALLED ON NULL INPUT
+STABLE;
+
+CREATE OR REPLACE FUNCTION empty_null_check(in int) RETURNS void as $$
+BEGIN
+IF $1 IS NULL OR $1 < 0 THEN
+        RAISE EXCEPTION 'Аргумент процедуры не может быть NULL или быть меньше нуля!';
+END IF;
+END;
+$$ LANGUAGE plpgsql
+LEAKPROOF
+CALLED ON NULL INPUT
+STABLE;
+
+
+CREATE OR REPLACE PROCEDURE public.update_field(table_u VARCHAR(2000),column_u VARCHAR(2000),pk INT,new_value VARCHAR(2000))
+LANGUAGE plpgsql AS $$
+DECLARE
+	check_exist INTEGER:= 0;
+	pk_name VARCHAR(2000);
+	v_data_type VARCHAR(2000);
+BEGIN
+
+PERFORM empty_null_check(table_u);
+PERFORM empty_null_check(column_u);
+PERFORM empty_null_check(pk);
+
+pk_name:= (select kcu.column_name as key_column
+                from information_schema.table_constraints tco
+                join information_schema.key_column_usage kcu
+                on kcu.constraint_name = tco.constraint_name
+                and kcu.constraint_schema = tco.constraint_schema
+                and kcu.constraint_name = tco.constraint_name
+                where tco.constraint_type = 'PRIMARY KEY' and kcu.table_name=table_u)::VARCHAR(2000);
+
+v_data_type = (SELECT data_type FROM information_schema.columns WHERE table_name = table_u AND column_name = column_u)::VARCHAR(2000);
+
+IF EXISTS(SELECT 1 FROM information_schema.tables WHERE table_name = table_u) THEN
+	IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = table_u AND column_name = column_u) THEN
+	EXECUTE
+	'SELECT 1 FROM ' || table_u || ' WHERE ' || pk_name || ' = ' || pk INTO check_exist;
+		IF (check_exist = 1) THEN
+			IF(v_data_type IN('boolean','timestamp','date','text')) THEN
+				EXECUTE
+				'UPDATE ' || table_u || ' SET ' || column_u || ' = ' || quote_literal(new_value) || ' WHERE ' || pk_name || ' = ' || pk;
+			ELSE
+				EXECUTE
+				'UPDATE ' || table_u || ' SET ' || column_u || ' = ' || new_value || ' WHERE ' || pk_name || ' = ' || pk;
+			END IF;
+		END IF;
+	END IF;
+END IF;
+END;
+$$;
+
+
+
+
+
+CREATE OR REPLACE PROCEDURE public.delete_record(table_d VARCHAR(2000),column_d VARCHAR(2000),value INT)
+LANGUAGE plpgsql AS $$
+DECLARE check_exist INTEGER:= 0;
+BEGIN
+
+PERFORM empty_null_check(table_d);
+PERFORM empty_null_check(column_d);
+PERFORM empty_null_check(value);
+
+
+IF EXISTS(SELECT 1 FROM information_schema.tables WHERE table_name = table_d) THEN
+	IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = table_d AND column_name = column_d) THEN
+		EXECUTE
+		'SELECT 1 FROM ' || table_d || ' WHERE ' || column_d || ' = ' || value INTO check_exist;
+		IF (check_exist = 1) THEN
+			EXECUTE
+			'DELETE FROM ' || table_d || ' WHERE ' || column_d || ' = ' || value;
+		END IF;
+	END IF;
+END IF;
+END;
+$$;
+
+
+
 CREATE OR REPLACE FUNCTION public.add_owners(_fio text, _facetype text, _communicationmethod text, _own INT)
 RETURNS boolean
 LANGUAGE plpgsql
@@ -589,7 +684,7 @@ END;
 $$;
 
 --добавление справочника
-create function add_sprav(_name text, _amountoffreeland int, _amountofoccupiedland int)
+create or replace function add_sprav(_name text, _amountoffreeland int, _amountofoccupiedland int)
 returns boolean
     language plpgsql
 as

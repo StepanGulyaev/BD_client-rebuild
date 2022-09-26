@@ -170,9 +170,63 @@ namespace DatabaseView {
             popup.ShowDialog();
             if (popup.result) {
                 int paramCount = popup.newValues.Keys.Count;
-                string insert_query = $"INSERT INTO {current_table} VALUES (";
-                foreach (string key in popup.newValues.Keys) {
-                    insert_query += $"'{popup.newValues[key]}',";
+                string insert_query = "SELECT ";
+                if(current_table == "owners")
+                    {
+                    insert_query += "add_owners(";
+                    }
+                else if(current_table == "region")
+                    {
+                    insert_query += "add_reg(";
+                    }
+                else if(current_table== "object")
+                    {
+                    insert_query += "add_obj(";
+                    }
+                else if (current_table == "object")
+                    {
+                    insert_query += "add_obj(";
+                    }
+                else if (current_table == "spravochnik")
+                    {
+                    insert_query += "add_sprav(";
+                    }
+
+                NpgsqlCommand get_table_datatypes = new NpgsqlCommand("SELECT column_name,data_type FROM " +
+                    $"information_schema.columns WHERE table_name = '{current_table}' AND ordinal_position <> 1 ORDER BY ordinal_position;",con);
+                NpgsqlDataReader reader = get_table_datatypes.ExecuteReader();
+                Dictionary<string, string> t_data_types = new Dictionary<string, string>();
+
+                if (reader.HasRows)
+                    {
+                    while (reader.Read())
+                        {
+                        t_data_types.Add(reader.GetString(0), reader.GetString(1));
+                        }
+                    }
+                reader.Close();
+
+                NpgsqlCommand pk_cmd = new NpgsqlCommand("select kcu.column_name as key_column " +
+                    " from information_schema.table_constraints tco" +
+                    " join information_schema.key_column_usage kcu " +
+                    "      on kcu.constraint_name = tco.constraint_name" +
+                    "      and kcu.constraint_schema = tco.constraint_schema" +
+                    "      and kcu.constraint_name = tco.constraint_name" +
+                    $" where tco.constraint_type = 'PRIMARY KEY' and kcu.table_name='{current_table}'", con);
+                string primary_key = pk_cmd.ExecuteScalar().ToString();
+
+                foreach (string column in t_data_types.Keys) {
+                    if(t_data_types[column] != primary_key) {
+                    string dt = t_data_types[column];
+                    if (dt == "text" || dt == "date" || dt == "bool" || dt == "timestamp")
+                        {
+                        insert_query += $"'{popup.newValues[column]}',";
+                        }
+                    else
+                        {
+                        insert_query += $"{popup.newValues[column]},";
+                        }
+                    }
                 }
                 insert_query = insert_query.Remove(insert_query.Length - 1) + ");";
                 NpgsqlCommand ins = new NpgsqlCommand(insert_query, con);
@@ -210,23 +264,10 @@ namespace DatabaseView {
                 if (popup.result) {
                     int paramCount = popup.newValues.Keys.Count;
                     foreach (string key in popup.newValues.Keys) {
-                        string update_query = $"CALL update_field('{current_table}','{key}',{selectedKey.SelectedItem},'{popup.newValues[key]}');";
+                        string update_query = $"CALL update_field('{current_table}','{key}',{selectedKey.SelectedItem},'{popup.newValues[key].Replace(',', '.')}');";
                         NpgsqlCommand upd = new NpgsqlCommand(update_query, con);
                         upd.ExecuteNonQuery();
                         }
-       
-                    /*update_query = update_query.Remove(update_query.Length - 1);
-                    update_query += $" WHERE {keyLabel.Text.Remove(keyLabel.Text.Length - 1)}='{selectedKey.SelectedItem}'";
-                    //NpgsqlCommand upd = new NpgsqlCommand(update_query, con);
-                    int result = 0;
-                    try {
-                        result = upd.ExecuteNonQuery();
-                    } catch { }
-                    if (result > 0) {
-                        MessageBox.Show("Значения были успешно изменены", "Успешно", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    } else {
-                        MessageBox.Show("Произошла ошибка при попытке изменить значения", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    }*/
                     showQuery($"SELECT * FROM {current_table}");
                     fillEditBox(current_table.ToLower());
                 }
