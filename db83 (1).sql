@@ -175,8 +175,11 @@ SELECT *FROM Object;
 SELECT SETVAL('object_obj_id_seq',(SELECT MAX(obj_id) FROM object)::bigint,true);
 
 --Создать индексы для увеличения скорости выполнения запросов
-CREATE INDEX idx_reg ON Region USING hash (reg_sum)  ;
-CREATE INDEX idx_obj ON Object USING btree (obj_name, obj_salary, obj_square, obj_dateofcommissioning, obj_reg) ;
+DROP EXTENSION IF EXISTS pg_trgm CASCADE;
+CREATE EXTENSION pg_trgm;
+
+CREATE INDEX obj_date_index ON object USING brin(obj_dateofcommissioning);
+CREATE INDEX spravochnik_name_id ON spravochnik USING gin(sprav_name gin_trgm_ops);
 
 --Запросы:
 --a. Составной многотабличный запрос с параметром, включающий соединение таблиц и CASE-выражение;
@@ -306,102 +309,8 @@ GRANT Prodavec TO Sania;
 хранимых процедур (с параметрами) хотя бы для одной таблицы;
 для остальных допустимо использовать возможности связывания
 полей ввода в приложении с полями БД.**/
+
 --добавление владельца
-
-CREATE OR REPLACE FUNCTION empty_null_check(in text) RETURNS void as $$
-BEGIN
-IF $1 IS NULL THEN
-        RAISE EXCEPTION 'Аргумент процедуры не может быть равен NULL!';
-ELSIF $1 = '' THEN
-	RAISE EXCEPTION 'Аргумент процедуры не может быть пуст!';
-END IF;
-END;
-$$ LANGUAGE plpgsql
-LEAKPROOF
-CALLED ON NULL INPUT
-STABLE;
-
-CREATE OR REPLACE FUNCTION empty_null_check(in int) RETURNS void as $$
-BEGIN
-IF $1 IS NULL OR $1 < 0 THEN
-        RAISE EXCEPTION 'Аргумент процедуры не может быть NULL или быть меньше нуля!';
-END IF;
-END;
-$$ LANGUAGE plpgsql
-LEAKPROOF
-CALLED ON NULL INPUT
-STABLE;
-
-
-CREATE OR REPLACE PROCEDURE public.update_field(table_u VARCHAR(2000),column_u VARCHAR(2000),pk INT,new_value VARCHAR(2000))
-LANGUAGE plpgsql AS $$
-DECLARE
-	check_exist INTEGER:= 0;
-	pk_name VARCHAR(2000);
-	v_data_type VARCHAR(2000);
-BEGIN
-
-PERFORM empty_null_check(table_u);
-PERFORM empty_null_check(column_u);
-PERFORM empty_null_check(pk);
-
-pk_name:= (select kcu.column_name as key_column
-                from information_schema.table_constraints tco
-                join information_schema.key_column_usage kcu
-                on kcu.constraint_name = tco.constraint_name
-                and kcu.constraint_schema = tco.constraint_schema
-                and kcu.constraint_name = tco.constraint_name
-                where tco.constraint_type = 'PRIMARY KEY' and kcu.table_name=table_u)::VARCHAR(2000);
-
-v_data_type = (SELECT data_type FROM information_schema.columns WHERE table_name = table_u AND column_name = column_u)::VARCHAR(2000);
-
-IF EXISTS(SELECT 1 FROM information_schema.tables WHERE table_name = table_u) THEN
-	IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = table_u AND column_name = column_u) THEN
-	EXECUTE
-	'SELECT 1 FROM ' || table_u || ' WHERE ' || pk_name || ' = ' || pk INTO check_exist;
-		IF (check_exist = 1) THEN
-			IF(v_data_type IN('boolean','timestamp','date','text')) THEN
-				EXECUTE
-				'UPDATE ' || table_u || ' SET ' || column_u || ' = ' || quote_literal(new_value) || ' WHERE ' || pk_name || ' = ' || pk;
-			ELSE
-				EXECUTE
-				'UPDATE ' || table_u || ' SET ' || column_u || ' = ' || new_value || ' WHERE ' || pk_name || ' = ' || pk;
-			END IF;
-		END IF;
-	END IF;
-END IF;
-END;
-$$;
-
-
-
-
-
-CREATE OR REPLACE PROCEDURE public.delete_record(table_d VARCHAR(2000),column_d VARCHAR(2000),value INT)
-LANGUAGE plpgsql AS $$
-DECLARE check_exist INTEGER:= 0;
-BEGIN
-
-PERFORM empty_null_check(table_d);
-PERFORM empty_null_check(column_d);
-PERFORM empty_null_check(value);
-
-
-IF EXISTS(SELECT 1 FROM information_schema.tables WHERE table_name = table_d) THEN
-	IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = table_d AND column_name = column_d) THEN
-		EXECUTE
-		'SELECT 1 FROM ' || table_d || ' WHERE ' || column_d || ' = ' || value INTO check_exist;
-		IF (check_exist = 1) THEN
-			EXECUTE
-			'DELETE FROM ' || table_d || ' WHERE ' || column_d || ' = ' || value;
-		END IF;
-	END IF;
-END IF;
-END;
-$$;
-
-
-
 CREATE OR REPLACE FUNCTION public.add_owners(_fio text, _facetype text, _communicationmethod text, _own INT)
 RETURNS boolean
 LANGUAGE plpgsql
@@ -455,84 +364,6 @@ BEGIN
 
 RETURN return_val;
 END; $function$ ;
-
---изменение владельца
-CREATE OR REPLACE FUNCTION public.change_own (_oldfio text, _newfio text, _newfacetype text, _newcommunicationmethod text,_own int)
-RETURNS boolean
-LANGUAGE plpgsql
-AS $function$declare
-return_val boolean := true;
-own_check int;
-BEGIN
-	begin
-	select count(*)
-	into own_check
-	from Owners
-	where own_fio = _newfio;
-	end;
-
-	if (_oldfio = _newfio)
-	THEN
-	own_check = own_check -1 ;
-	end if;
-
-
-
-	begin
-	select count(*)
-	into own_check
-	from Owners
-	where  own_fio = _oldfio;
-	end;
-
-	if (own_check > 0)
-	then
-	raise exception 'Already exists';
-	return_val = false;
-	end if;
-
-	if (return_val = true)
-	THEN
-	update Owners
-	set own_fio = _newfio,
-	own_facetype = _newfacetype,
-	own_communicationmethod = _newcommunicationmethod,
-	own_own = _own
-	where own_fio= _oldfio;
-	end if;
-
-return return_val;
-END; $function$ ;
-
---удаления владельца
-create function public.delete_own(_oldfio text)
-returns boolean
-language plpgsql
-as $$ declare
-return_val boolean := true;
-own_check int;
-BEGIN
-    select count(*)
-    into own_check
-    from Owners
-    where own_fio = _oldfio;
-    if (own_check = 0)
-    then
-    raise exception 'There are no FIO with this number!';
-    return_val = false;
-    end if;
-
-    if (own_check = 1)
-    then
-    DELETE from Owners
-    where own_fio = _oldfio;
-    end if;
-
-return return_val;
-END;
-$$;
-
-
 
 --добавление участка
 create function add_reg(_name text, _square int, _address text, _amountregion int, _cadastralobject int, _sprav int, _tax text, _costmeter numeric)
@@ -616,82 +447,6 @@ RETURN return_val;
 END;
 $$;
 
---изменение участка
-create function change_reg(_oldname text, _newname text, _newsquare int, _newaddress text, _newamountregion int, _newcadastralobject int,
-                            _newsprav int, _newtax text, _newcostmeter numeric)
-returns boolean
-    language plpgsql
-as
-$$
-declare
-return_val boolean := true;
-reg_check int;
-BEGIN
-    begin
-    select count(*)
-    into reg_check
-    from Region
-    where reg_name = _newname;
-    end;
-
-    if (_oldname = _newname)
-        THEN
-        reg_check = reg_check -1 ;
-    end if;
-
-    if (reg_check > 0)
-        then
-        raise exception 'A Name region with this name already exists!';
-        return_val = false;
-    end if;
-
-if (return_val = true)
-THEN
-update Region
-set reg_name = _newname,
-reg_square = _newsquare,
-reg_address = _newaddress,
-reg_amountregion = _newamountregion,
-reg_cadastralobject = _newcadastralobject,
-reg_sprav = _newsprav,
-reg_tax = _newtax,
-reg_costmeter = _newcostmeter
-where reg_name = _oldname;
-end if;
-return return_val;
-END;
-$$;
-
---удаления участка
-create function delete_reg(_oldname text)
-returns boolean
-    language plpgsql
-as
-$$
-declare
-return_val boolean := true;
-reg_check int;
-BEGIN
-    select count(*)
-    into reg_check
-    from Region
-    where reg_name = _oldname;
-    if (reg_check = 0)
-    then
-    raise exception 'There is no name region with this ID!';
-    return_val = false;
-    end if;
-
-    if (reg_check = 1)
-    then
-    DELETE from Region
-    where reg_name = _oldname;
-    end if;
-
-return return_val;
-END;
-$$;
-
 --добавление справочника
 create or replace function add_sprav(_name text, _amountoffreeland int, _amountofoccupiedland int)
 returns boolean
@@ -741,76 +496,6 @@ BEGIN
     END if;
 
 RETURN return_val;
-END;
-$$;
-
---изменение справочника
-create function change_sprav(_oldname text, _newname text, _newamountoffreeland int, _newamountofoccupiedland int)
-returns boolean
-    language plpgsql
-as
-$$
-declare
-return_val boolean := true;
-sprav_check int;
-BEGIN
-    begin
-    select count(*)
-    into sprav_check
-    from Spravochnik
-    where sprav_name = _newname;
-    end;
-
-    if (_oldname = _newname)
-    THEN
-    sprav_check = sprav_check -1 ;
-    end if;
-
-    if (sprav_check > 0)
-    then
-    raise exception 'Spravochnik with that name already exists!';
-    return_val = false;
-    end if;
-
-    if (return_val = true)
-    THEN
-    update Spravochnik
-    set sprav_name = _newname,
-    sprav_amountoffreeland = _newamountoffreeland,
-    sprav_amountofoccupiedland = _newamountofoccupiedland
-    where sprav_name = _oldname;
-    end if;
-
-return return_val;
-END;
-$$;
-
---удаление справочника
-create function delete_sprav(_oldname int) returns boolean
-    language plpgsql
-as
-$$
-declare
-return_val boolean := true;
-sprav_check int;
-BEGIN
-    select count(*)
-    into sprav_check
-    from Spravochnik
-    where sprav_name = _oldname;
-    if (sprav_check = 0)
-    then
-    raise exception 'Spavochnik is impossible without working days!';
-    return_val = false;
-    end if;
-
-    if (sprav_check = 1)
-    then
-    DELETE from Spravochnik
-    where sprav_name = _oldname;
-    end if;
-
-return return_val;
 END;
 $$;
 
@@ -883,80 +568,97 @@ BEGIN
 RETURN return_val;
 END; $function$ ;
 
---изменение объекта
-CREATE OR REPLACE FUNCTION public.change_obj(_oldname text, _newname text, _newsalary numeric, _newsquare int, 
-											 _newdateofcommissioning date, _newreg int, _newown int)
-RETURNS boolean
-LANGUAGE plpgsql
-AS $function$declare
-return_val boolean := true;
-obj_check int;
+--функции проверки вводимого значения
+
+
+CREATE OR REPLACE FUNCTION empty_null_check(in text) RETURNS void as $$
 BEGIN
-	begin
-	select count(*)
-	into obj_check
-	from Object
-	where obj_name = _newname;
-	end;
+IF $1 IS NULL THEN
+        RAISE EXCEPTION 'Аргумент процедуры не может быть равен NULL!';
+ELSIF $1 = '' THEN
+	RAISE EXCEPTION 'Аргумент процедуры не может быть пуст!';
+END IF;
+END;
+$$ LANGUAGE plpgsql
+LEAKPROOF
+CALLED ON NULL INPUT
+STABLE;
 
-	if (_oldname = _newname)
-	THEN
-	obj_check = obj_check -1 ;
-	end if;
-
-	begin
-	select count(*)
-	into obj_check
-	from Object
-	where obj_name = _oldname;
-	end;
-
-	if (obj_check > 0)
-	then
-	raise exception 'Already exists';
-	return_val = false;
-	end if;
-
-	if (return_val = true)
-	THEN
-	update Object
-	set obj_name = _newname,
-	obj_salary = _newsalary,
-	obj_square = _newsquare,
-	obj_dateofcommissioning = _newdateofcommissioning,
-	obj_reg = _newreg,
-	obj_own = _newown
-	where obj_name = _oldname;
-	end if;
-
-return return_val;
-END; $function$ ;
-
---удаление объекта
-create function public.delete_obj(_oldname text)
-returns boolean
-language plpgsql
-as $$ declare
-return_val boolean := true;
-obj_check int;
+CREATE OR REPLACE FUNCTION empty_null_check(in int) RETURNS void as $$
 BEGIN
-    select count(*)
-    into obj_check
-    from Object
-    where obj_name = _oldname;
-    if (obj_check = 0)
-    then
-    raise exception 'There are no object with this ID!';
-    return_val = false;
-    end if;
+IF $1 IS NULL OR $1 < 0 THEN
+        RAISE EXCEPTION 'Аргумент процедуры не может быть NULL или быть меньше нуля!';
+END IF;
+END;
+$$ LANGUAGE plpgsql
+LEAKPROOF
+CALLED ON NULL INPUT
+STABLE;
 
-    if (obj_check = 1)
-    then
-    DELETE from Object
-    where obj_name = _oldname;
-    end if;
+--обновление любого поля в базе данных
 
-return return_val;
+CREATE OR REPLACE PROCEDURE public.update_field(table_u VARCHAR(2000),column_u VARCHAR(2000),pk INT,new_value VARCHAR(2000))
+LANGUAGE plpgsql AS $$
+DECLARE
+	check_exist INTEGER:= 0;
+	pk_name VARCHAR(2000);
+	v_data_type VARCHAR(2000);
+BEGIN
+
+PERFORM empty_null_check(table_u);
+PERFORM empty_null_check(column_u);
+PERFORM empty_null_check(pk);
+
+pk_name:= (select kcu.column_name as key_column
+                from information_schema.table_constraints tco
+                join information_schema.key_column_usage kcu
+                on kcu.constraint_name = tco.constraint_name
+                and kcu.constraint_schema = tco.constraint_schema
+                and kcu.constraint_name = tco.constraint_name
+                where tco.constraint_type = 'PRIMARY KEY' and kcu.table_name=table_u)::VARCHAR(2000);
+
+v_data_type = (SELECT data_type FROM information_schema.columns WHERE table_name = table_u AND column_name = column_u)::VARCHAR(2000);
+
+IF EXISTS(SELECT 1 FROM information_schema.tables WHERE table_name = table_u) THEN
+	IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = table_u AND column_name = column_u) THEN
+	EXECUTE
+	'SELECT 1 FROM ' || table_u || ' WHERE ' || pk_name || ' = ' || pk INTO check_exist;
+		IF (check_exist = 1) THEN
+			IF(v_data_type IN('boolean','timestamp','date','text')) THEN
+				EXECUTE
+				'UPDATE ' || table_u || ' SET ' || column_u || ' = ' || quote_literal(new_value) || ' WHERE ' || pk_name || ' = ' || pk;
+			ELSE
+				EXECUTE
+				'UPDATE ' || table_u || ' SET ' || column_u || ' = ' || new_value || ' WHERE ' || pk_name || ' = ' || pk;
+			END IF;
+		END IF;
+	END IF;
+END IF;
+END;
+$$;
+
+--обновление любой записи в базе данных
+
+CREATE OR REPLACE PROCEDURE public.delete_record(table_d VARCHAR(2000),column_d VARCHAR(2000),value INT)
+LANGUAGE plpgsql AS $$
+DECLARE check_exist INTEGER:= 0;
+BEGIN
+
+PERFORM empty_null_check(table_d);
+PERFORM empty_null_check(column_d);
+PERFORM empty_null_check(value);
+
+
+IF EXISTS(SELECT 1 FROM information_schema.tables WHERE table_name = table_d) THEN
+	IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = table_d AND column_name = column_d) THEN
+		EXECUTE
+		'SELECT 1 FROM ' || table_d || ' WHERE ' || column_d || ' = ' || value INTO check_exist;
+		IF (check_exist = 1) THEN
+			EXECUTE
+			'DELETE FROM ' || table_d || ' WHERE ' || column_d || ' = ' || value;
+		END IF;
+	END IF;
+END IF;
 END;
 $$;
 
